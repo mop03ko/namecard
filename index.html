@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Name Card Creator</title>
+  <script src="qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #18181f;
+      --surface2: #22222c;
+      --border: #2e2e3a;
+      --accent: #6c63ff;
+      --accent2: #a78bfa;
+      --text: #e8e8f0;
+      --muted: #8888a0;
+      --card-h: 200px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 28px 24px 0;
+      text-align: center;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header h1 span { color: var(--accent2); }
+    header p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 1000px;
+      margin: 32px auto;
+      padding: 0 20px 40px;
+    }
+
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ---- FORM ---- */
+    .form-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    .form-panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 20px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      padding: 10px 13px;
+      font-size: 0.93rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field textarea:focus {
+      border-color: var(--accent);
+    }
+    .field textarea { resize: vertical; min-height: 64px; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .color-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .color-row label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 5px; }
+    .color-group { flex: 1; min-width: 100px; }
+    .color-group input[type="color"] {
+      width: 100%;
+      height: 38px;
+      padding: 3px 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .photo-upload {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    #photo-preview {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    #photo-preview .placeholder { color: var(--muted); font-size: 1.6rem; }
+    .upload-btn {
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 9px;
+      padding: 9px 16px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .upload-btn:hover { border-color: var(--accent); color: var(--accent2); }
+    #photo-input { display: none; }
+
+    /* ---- PREVIEW ---- */
+    .preview-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-wrap {
+      perspective: 1000px;
+    }
+    .card {
+      background: linear-gradient(135deg, var(--card-bg1, #6c63ff), var(--card-bg2, #3b82f6));
+      border-radius: 18px;
+      padding: 28px 26px;
+      min-height: var(--card-h);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: transform 0.4s;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+    }
+    .card::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -30px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+    }
+    .card:hover { transform: rotateY(-4deg) rotateX(2deg); }
+
+    .card-inner { display: flex; gap: 18px; align-items: flex-start; position: relative; z-index: 1; }
+    .card-avatar {
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      object-fit: cover;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      overflow: hidden;
+    }
+    .card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .card-info { flex: 1; }
+    .card-name { font-size: 1.25rem; font-weight: 700; color: #fff; line-height: 1.2; word-break: break-word; }
+    .card-title { font-size: 0.82rem; color: rgba(255,255,255,0.75); margin-top: 3px; }
+    .card-company { font-size: 0.88rem; color: rgba(255,255,255,0.85); margin-top: 2px; font-weight: 500; }
+
+    .card-details { margin-top: 18px; display: flex; flex-direction: column; gap: 5px; position: relative; z-index: 1; }
+    .card-detail { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: rgba(255,255,255,0.85); }
+    .card-detail .icon { width: 18px; text-align: center; font-size: 0.9rem; opacity: 0.8; flex-shrink: 0; }
+
+    /* ---- QR + DOWNLOAD ---- */
+    .actions-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+    }
+    .actions-panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .qr-section { display: flex; align-items: center; gap: 18px; }
+    #qrcode {
+      background: #fff;
+      padding: 8px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      width: 126px;
+      height: 126px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #qrcode canvas { display: block; }
+
+    .qr-info { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+    .qr-info strong { color: var(--text); display: block; margin-bottom: 4px; }
+
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      text-align: center;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 130px;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    .share-url {
+      margin-top: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 13px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      word-break: break-all;
+      display: none;
+    }
+
+    /* tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .tab {
+      padding: 9px 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s;
+    }
+    .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Name Card <span>Creator</span></h1>
+  <p>Fill in your details, preview your card, then save to iPhone or Android contacts</p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Form -->
+  <div class="form-panel">
+    <div class="tabs">
+      <div class="tab active" data-tab="info">Contact Info</div>
+      <div class="tab" data-tab="style">Card Style</div>
+    </div>
+
+    <!-- Tab: Info -->
+    <div class="tab-content active" id="tab-info">
+      <div class="photo-upload">
+        <div id="photo-preview"><span class="placeholder">👤</span></div>
+        <label class="upload-btn" for="photo-input">📷 Upload Photo</label>
+        <input type="file" id="photo-input" accept="image/*" />
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>First Name</label>
+          <input type="text" id="firstName" placeholder="John" />
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="Doe" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Job Title</label>
+        <input type="text" id="title" placeholder="Product Designer" />
+      </div>
+
+      <div class="field">
+        <label>Company</label>
+        <input type="text" id="company" placeholder="Acme Inc." />
+      </div>
+
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="phone" placeholder="+1 555 000 0000" />
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="john@example.com" />
+      </div>
+
+      <div class="field">
+        <label>Website</label>
+        <input type="url" id="website" placeholder="https://johndoe.com" />
+      </div>
+
+      <div class="field">
+        <label>Address</label>
+        <textarea id="address" placeholder="123 Main St, City, Country"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Note</label>
+        <input type="text" id="note" placeholder="Optional note" />
+      </div>
+    </div>
+
+    <!-- Tab: Style -->
+    <div class="tab-content" id="tab-style">
+      <div class="color-row">
+        <div class="color-group">
+          <label>Background From</label>
+          <input type="color" id="colorFrom" value="#6c63ff" />
+        </div>
+        <div class="color-group">
+          <label>Background To</label>
+          <input type="color" id="colorTo" value="#3b82f6" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Card Style</label>
+        <select id="cardStyle">
+          <option value="gradient">Gradient</option>
+          <option value="solid">Solid Color</option>
+          <option value="dark">Dark Minimal</option>
+          <option value="glass">Glass</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Preset Themes</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          <button class="preset-btn" data-from="#6c63ff" data-to="#3b82f6" style="background:linear-gradient(135deg,#6c63ff,#3b82f6)"></button>
+          <button class="preset-btn" data-from="#f59e0b" data-to="#ef4444" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"></button>
+          <button class="preset-btn" data-from="#10b981" data-to="#0ea5e9" style="background:linear-gradient(135deg,#10b981,#0ea5e9)"></button>
+          <button class="preset-btn" data-from="#ec4899" data-to="#8b5cf6" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)"></button>
+          <button class="preset-btn" data-from="#1e293b" data-to="#334155" style="background:linear-gradient(135deg,#1e293b,#334155)"></button>
+          <button class="preset-btn" data-from="#111827" data-to="#1f2937" style="background:linear-gradient(135deg,#111827,#1f2937)"></button>
+        </div>
+        <style>
+          .preset-btn {
+            width: 36px; height: 36px; border-radius: 8px; border: 2px solid transparent;
+            cursor: pointer; transition: border-color 0.2s, transform 0.1s;
+          }
+          .preset-btn:hover { border-color: #fff; transform: scale(1.1); }
+        </style>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview + Actions -->
+  <div class="preview-panel">
+
+    <!-- Card Preview -->
+    <div class="card-wrap">
+      <div class="card" id="nameCard">
+        <div class="card-inner">
+          <div class="card-avatar" id="cardAvatar">👤</div>
+          <div class="card-info">
+            <div class="card-name" id="cardName">Your Name</div>
+            <div class="card-title" id="cardTitle"></div>
+            <div class="card-company" id="cardCompany"></div>
+          </div>
+        </div>
+        <div class="card-details" id="cardDetails"></div>
+      </div>
+    </div>
+
+    <!-- Save to Contacts -->
+    <div class="actions-panel">
+      <h2>Save to Contacts</h2>
+      <div class="qr-section">
+        <div id="qrcode"></div>
+        <div class="qr-info">
+          <strong>Scan with any phone</strong>
+          Scan this QR code to instantly save the contact to iPhone or Android — no app needed.
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="downloadVcf">
+          <span>📲</span> Download .vcf
+        </button>
+        <button class="btn btn-secondary" id="copyVcard">
+          <span>📋</span> Copy vCard
+        </button>
+        <button class="btn btn-secondary" id="downloadQr">
+          <span>🖼️</span> Save QR
+        </button>
+      </div>
+      <div class="share-url" id="shareHint">
+        Tip: Host this .vcf file online and share the link — users can tap it to save directly on iOS & Android.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ---- State ----
+  let photoDataUrl = null;
+
+  // ---- Tab switching ----
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- Photo upload ----
+  document.getElementById('photo-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      photoDataUrl = ev.target.result;
+      document.getElementById('photo-preview').innerHTML = `<img src="${photoDataUrl}" />`;
+      document.getElementById('cardAvatar').innerHTML = `<img src="${photoDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+      updateQr();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ---- Preset themes ----
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('colorFrom').value = btn.dataset.from;
+      document.getElementById('colorTo').value = btn.dataset.to;
+      updateCard();
+    });
+  });
+
+  // ---- Card style ----
+  document.getElementById('cardStyle').addEventListener('change', updateCard);
+  document.getElementById('colorFrom').addEventListener('input', updateCard);
+  document.getElementById('colorTo').addEventListener('input', updateCard);
+
+  // ---- Live form inputs ----
+  const fields = ['firstName','lastName','title','company','phone','email','website','address','note'];
+  fields.forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { updateCard(); updateQr(); });
+  });
+
+  function get(id) { return document.getElementById(id).value.trim(); }
+
+  function updateCard() {
+    const first = get('firstName'), last = get('lastName');
+    const fullName = [first, last].filter(Boolean).join(' ') || 'Your Name';
+    const title = get('title');
+    const company = get('company');
+    const phone = get('phone');
+    const email = get('email');
+    const website = get('website');
+    const address = get('address');
+
+    document.getElementById('cardName').textContent = fullName;
+    document.getElementById('cardTitle').textContent = title;
+    document.getElementById('cardTitle').style.display = title ? '' : 'none';
+    document.getElementById('cardCompany').textContent = company;
+    document.getElementById('cardCompany').style.display = company ? '' : 'none';
+
+    if (!photoDataUrl) {
+      const initials = ([first[0], last[0]].filter(Boolean).join('') || '👤');
+      if (/[a-zA-Z]/.test(initials)) {
+        document.getElementById('cardAvatar').textContent = initials.toUpperCase();
+        document.getElementById('cardAvatar').style.fontSize = '1.3rem';
+        document.getElementById('cardAvatar').style.fontWeight = '700';
+        document.getElementById('cardAvatar').style.color = 'rgba(255,255,255,0.9)';
+      }
+    }
+
+    let detailsHtml = '';
+    if (phone)   detailsHtml += `<div class="card-detail"><span class="icon">📞</span>${phone}</div>`;
+    if (email)   detailsHtml += `<div class="card-detail"><span class="icon">✉️</span>${email}</div>`;
+    if (website) detailsHtml += `<div class="card-detail"><span class="icon">🌐</span>${website.replace(/^https?:\/\//, '')}</div>`;
+    if (address) detailsHtml += `<div class="card-detail"><span class="icon">📍</span>${address}</div>`;
+    document.getElementById('cardDetails').innerHTML = detailsHtml;
+
+    // Apply card style
+    const card = document.getElementById('nameCard');
+    const style = document.getElementById('cardStyle').value;
+    const c1 = document.getElementById('colorFrom').value;
+    const c2 = document.getElementById('colorTo').value;
+
+    if (style === 'gradient') {
+      card.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+      card.style.backdropFilter = '';
+      card.style.border = 'none';
+    } else if (style === 'solid') {
+      card.style.background = c1;
+      card.style.backdropFilter = '';
+      card.style.border = 'none';
+    } else if (style === 'dark') {
+      card.style.background = 'linear-gradient(135deg, #0f0f13, #1a1a24)';
+      card.style.border = '1px solid rgba(255,255,255,0.08)';
+    } else if (style === 'glass') {
+      card.style.background = `linear-gradient(135deg, ${c1}cc, ${c2}88)`;
+      card.style.backdropFilter = 'blur(20px)';
+      card.style.border = '1px solid rgba(255,255,255,0.2)';
+    }
+  }
+
+  // ---- vCard builder ----
+  function buildVcard() {
+    const first = get('firstName'), last = get('lastName');
+    const title = get('title'), company = get('company');
+    const phone = get('phone'), email = get('email');
+    const website = get('website'), address = get('address'), note = get('note');
+
+    let lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:${last};${first};;;`,
+      `FN:${[first, last].filter(Boolean).join(' ') || 'Name'}`,
+    ];
+    if (title)   lines.push(`TITLE:${title}`);
+    if (company) lines.push(`ORG:${company}`);
+    if (phone)   lines.push(`TEL;TYPE=CELL:${phone}`);
+    if (email)   lines.push(`EMAIL:${email}`);
+    if (website) lines.push(`URL:${website}`);
+    if (address) lines.push(`ADR;TYPE=WORK:;;${address.replace(/\n/g, ' ')};;;;`);
+    if (note)    lines.push(`NOTE:${note}`);
+
+    if (photoDataUrl && photoDataUrl.startsWith('data:image')) {
+      const mime = photoDataUrl.split(';')[0].split(':')[1];
+      const b64  = photoDataUrl.split(',')[1];
+      const type = mime.split('/')[1].toUpperCase();
+      lines.push(`PHOTO;ENCODING=b;TYPE=${type}:${b64}`);
+    }
+
+    lines.push('END:VCARD');
+    return lines.join('\r\n');
+  }
+
+  // ---- QR Code ----
+  let qrInstance = null;
+  function buildMecard() {
+    // MECARD is far more compact than vCard — ideal for QR codes
+    const first = get('firstName'), last = get('lastName');
+    const phone = get('phone'), email = get('email');
+    const website = get('website'), note = get('note'), company = get('company');
+    const esc = s => s.replace(/([\\:;,])/g, '\\$1');
+    let parts = [`N:${esc([last, first].filter(Boolean).join(','))}`];
+    if (phone)   parts.push(`TEL:${esc(phone)}`);
+    if (email)   parts.push(`EMAIL:${esc(email)}`);
+    if (website) parts.push(`URL:${esc(website)}`);
+    if (company) parts.push(`ORG:${esc(company)}`);
+    if (note)    parts.push(`NOTE:${esc(note)}`);
+    return 'MECARD:' + parts.join(';') + ';;';
+  }
+
+  function updateQr() {
+    const vcf = buildMecard();
+    const el = document.getElementById('qrcode');
+    try {
+      const qr = qrcode(0, 'L'); // type 0 = auto-detect size
+      qr.addData(vcf, 'Byte');
+      qr.make();
+      // Draw on canvas
+      const size = 110;
+      const moduleCount = qr.getModuleCount();
+      const cell = Math.floor(size / moduleCount);
+      const offset = Math.floor((size - cell * moduleCount) / 2);
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#000000';
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (qr.isDark(row, col)) {
+            ctx.fillRect(offset + col * cell, offset + row * cell, cell, cell);
+          }
+        }
+      }
+      el.innerHTML = '';
+      el.appendChild(canvas);
+    } catch(e) {
+      el.innerHTML = '<div style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#333;text-align:center;padding:8px;">QR unavailable.<br>Download .vcf.</div>';
+    }
+  }
+
+  // ---- Download .vcf ----
+  document.getElementById('downloadVcf').addEventListener('click', () => {
+    const vcf = buildVcard();
+    const blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const first = get('firstName') || 'contact';
+    const last  = get('lastName')  || '';
+    a.href = url;
+    a.download = [first, last].filter(Boolean).join('_').toLowerCase() + '.vcf';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Show tip
+    document.getElementById('shareHint').style.display = 'block';
+  });
+
+  // ---- Copy vCard ----
+  document.getElementById('copyVcard').addEventListener('click', async () => {
+    const vcf = buildVcard();
+    try {
+      await navigator.clipboard.writeText(vcf);
+      const btn = document.getElementById('copyVcard');
+      btn.innerHTML = '<span>✅</span> Copied!';
+      setTimeout(() => { btn.innerHTML = '<span>📋</span> Copy vCard'; }, 2000);
+    } catch(e) {
+      alert('Copy failed. Please manually copy the vCard text.');
+    }
+  });
+
+  // ---- Download QR ----
+  document.getElementById('downloadQr').addEventListener('click', () => {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    const first = get('firstName') || 'contact';
+    const last  = get('lastName')  || '';
+    a.href = canvas.toDataURL('image/png');
+    a.download = [first, last].filter(Boolean).join('_').toLowerCase() + '_qr.png';
+    a.click();
+  });
+
+  // ---- Init ----
+  updateCard();
+  updateQr();
+</script>
+</body>
+</html>
