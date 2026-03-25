@@ -195,41 +195,6 @@
     }
     .actions-panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 
-    /* QR mode toggle */
-    .qr-mode-toggle {
-      display: inline-flex;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 3px;
-      margin-bottom: 14px;
-      gap: 2px;
-    }
-    .qr-mode-btn {
-      padding: 6px 18px;
-      border-radius: 7px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all .18s;
-    }
-    .qr-mode-btn.active {
-      background: var(--accent);
-      color: #fff;
-    }
-    .qr-mode-badge {
-      font-size: 0.65rem;
-      background: var(--accent2);
-      color: #fff;
-      border-radius: 4px;
-      padding: 1px 5px;
-      margin-left: 4px;
-      vertical-align: middle;
-    }
-
     .qr-section { display: flex; align-items: center; gap: 18px; }
     #qrcode {
       background: #fff;
@@ -246,23 +211,6 @@
 
     .qr-info { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
     .qr-info strong { color: var(--text); display: block; margin-bottom: 4px; }
-
-    #dynamicUrlDisplay {
-      display: none;
-      margin-top: 8px;
-      font-size: 0.72rem;
-      color: var(--accent2);
-      word-break: break-all;
-      background: var(--surface2);
-      border-radius: 7px;
-      padding: 6px 10px;
-    }
-    #dynamicStaleNote {
-      display: none;
-      font-size: 0.72rem;
-      color: #f0a;
-      margin-top: 4px;
-    }
 
     .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
     .btn {
@@ -448,26 +396,11 @@
     <div class="actions-panel">
       <h2>Save to Contacts</h2>
 
-      <!-- QR mode toggle -->
-      <div class="qr-mode-toggle">
-        <button class="qr-mode-btn active" id="modeStatic">Static</button>
-        <button class="qr-mode-btn" id="modeDynamic">Dynamic <span class="qr-mode-badge">URL</span></button>
-      </div>
-
       <div class="qr-section">
-        <div>
-          <div id="qrcode"></div>
-          <div id="dynamicUrlDisplay"></div>
-          <div id="dynamicStaleNote">⚠️ Data changed — regenerate</div>
-        </div>
+        <div id="qrcode"></div>
         <div class="qr-info">
-          <strong id="qrInfoTitle">Scan with any phone</strong>
-          <span id="qrInfoDesc">Encodes your contact info directly — scan saves instantly.</span>
-          <div style="margin-top:10px;" id="dynamicGenWrap" style="display:none;">
-            <button class="btn btn-primary" id="generateDynamicQr" style="padding:9px 16px;font-size:0.82rem;display:none;">
-              <span>⚡</span> Generate Dynamic QR
-            </button>
-          </div>
+          <strong>Scan with any phone</strong>
+          Scan this QR code to instantly save the contact to iPhone or Android — no app needed.
         </div>
       </div>
       <div class="btn-group">
@@ -543,15 +476,7 @@
   // ---- Live form inputs ----
   const fields = ['firstName','lastName','title','company','phone','email','website','address','note'];
   fields.forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      updateCard();
-      if (qrMode === 'dynamic' && dynamicQrUrl) {
-        dynamicQrStale = true;
-        document.getElementById('dynamicStaleNote').style.display = 'block';
-      } else {
-        updateQr();
-      }
-    });
+    document.getElementById(id).addEventListener('input', () => { updateCard(); updateQr(); });
   });
 
   function get(id) { return document.getElementById(id).value.trim(); }
@@ -668,83 +593,12 @@
     return lines.join('\r\n');
   }
 
-  // ---- QR Mode ----
-  let qrMode = 'static'; // 'static' | 'dynamic'
-  let dynamicQrUrl = null;
-  let dynamicQrStale = false;
-
-  document.getElementById('modeStatic').addEventListener('click', () => {
-    qrMode = 'static';
-    document.getElementById('modeStatic').classList.add('active');
-    document.getElementById('modeDynamic').classList.remove('active');
-    document.getElementById('generateDynamicQr').style.display = 'none';
-    document.getElementById('dynamicUrlDisplay').style.display = 'none';
-    document.getElementById('dynamicStaleNote').style.display = 'none';
-    document.getElementById('qrInfoTitle').textContent = 'Scan with any phone';
-    document.getElementById('qrInfoDesc').textContent = 'Encodes your contact info directly — scan saves instantly.';
-    updateQr();
-  });
-
-  document.getElementById('modeDynamic').addEventListener('click', () => {
-    qrMode = 'dynamic';
-    document.getElementById('modeDynamic').classList.add('active');
-    document.getElementById('modeStatic').classList.remove('active');
-    document.getElementById('qrInfoTitle').textContent = 'Dynamic QR';
-    document.getElementById('qrInfoDesc').textContent = 'QR encodes a short URL. Visitor opens your card page and saves from there.';
-    document.getElementById('generateDynamicQr').style.display = 'inline-flex';
-    updateQr();
-  });
-
-  document.getElementById('generateDynamicQr').addEventListener('click', generateDynamicQr);
-
-  async function generateDynamicQr() {
-    const btn = document.getElementById('generateDynamicQr');
-    btn.innerHTML = '<span>⏳</span> Shortening…';
-    btn.disabled = true;
-
-    const data = {
-      firstName: get('firstName'), lastName: get('lastName'),
-      title: get('title'), company: get('company'),
-      phone: get('phone'), email: get('email'),
-      website: get('website'), address: get('address'), note: get('note'),
-      colorFrom: document.getElementById('colorFrom').value,
-      colorTo: document.getElementById('colorTo').value,
-      cardStyle: document.getElementById('cardStyle').value,
-      photo: photoDataUrl || ''
-    };
-    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const longUrl = `${location.origin}${location.pathname}#preview=${hash}`;
-
-    let shortUrl = longUrl;
-    try {
-      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-      if (res.ok) {
-        const txt = await res.text();
-        if (txt.trim().startsWith('http')) shortUrl = txt.trim();
-      }
-    } catch(e) { /* fallback to long */ }
-
-    dynamicQrUrl = shortUrl;
-    dynamicQrStale = false;
-    document.getElementById('dynamicStaleNote').style.display = 'none';
-    document.getElementById('dynamicUrlDisplay').textContent = shortUrl;
-    document.getElementById('dynamicUrlDisplay').style.display = 'block';
-
-    // Also update the shareBox input if visible
-    const shareInput = document.getElementById('shareUrl');
-    if (shareInput) shareInput.value = shortUrl;
-
-    renderQrFromText(shortUrl);
-
-    btn.innerHTML = '<span>🔄</span> Regenerate';
-    btn.disabled = false;
-  }
-
-  function renderQrFromText(text) {
+  function updateQr() {
     const el = document.getElementById('qrcode');
+    const vcf = buildQrVcard();
     try {
       const qr = qrcode(0, 'L');
-      qr.addData(text, 'Byte');
+      qr.addData(vcf, 'Byte');
       qr.make();
       const size = 190;
       const moduleCount = qr.getModuleCount();
@@ -761,25 +615,8 @@
       el.innerHTML = '';
       el.appendChild(canvas);
     } catch(e) {
-      el.innerHTML = '<div style="padding:8px;font-size:0.7rem;color:#333;text-align:center;">QR error</div>';
+      el.innerHTML = '<div style="padding:8px;font-size:0.7rem;color:#333;text-align:center;">QR unavailable.<br>Download .vcf.</div>';
     }
-  }
-
-  function updateQr() {
-    if (qrMode === 'dynamic') {
-      const el = document.getElementById('qrcode');
-      if (dynamicQrUrl && !dynamicQrStale) {
-        renderQrFromText(dynamicQrUrl);
-      } else {
-        // Show placeholder
-        el.innerHTML = '<div style="width:174px;height:174px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:0.72rem;color:#888;text-align:center;padding:8px;">' +
-          '<div style="font-size:1.6rem;">⚡</div>Click Generate<br>Dynamic QR</div>';
-      }
-      return;
-    }
-    // Static mode
-    const vcf = buildQrVcard();
-    renderQrFromText(vcf);
   }
 
   // ---- Download .vcf ----
