@@ -571,26 +571,29 @@
 
   // ---- QR Code ----
   let qrInstance = null;
-  function buildMecard() {
-    // MECARD is far more compact than vCard — ideal for QR codes
+  function buildQrVcard() {
+    // Minimal vCard 3.0 (no photo) — universally parsed by iOS & Android
     const first = get('firstName'), last = get('lastName');
     const phone = get('phone'), email = get('email');
-    const website = get('website'), note = get('note'), company = get('company');
-    // Only escape backslash and semicolon in text fields; never touch URLs
-    const esc = s => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;');
-    // Name: comma separates last,first — do not escape it
-    const namePart = [last, first].filter(Boolean).join(',');
-    let parts = [`N:${esc(namePart)}`];
-    if (phone)   parts.push(`TEL:${phone.replace(/[^\d+]/g, '')}`);
-    if (email)   parts.push(`EMAIL:${email}`);
-    if (website) parts.push(`URL:${website}`);
-    if (company) parts.push(`ORG:${esc(company)}`);
-    if (note)    parts.push(`NOTE:${esc(note)}`);
-    return 'MECARD:' + parts.join(';') + ';;';
+    const website = get('website'), note = get('note'), company = get('company'), title = get('title');
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:${last};${first};;;`,
+      `FN:${[first, last].filter(Boolean).join(' ')}`,
+    ];
+    if (company) lines.push(`ORG:${company}`);
+    if (title)   lines.push(`TITLE:${title}`);
+    if (phone)   lines.push(`TEL;TYPE=CELL:${phone}`);
+    if (email)   lines.push(`EMAIL:${email}`);
+    if (website) lines.push(`URL:${website}`);
+    if (note)    lines.push(`NOTE:${note}`);
+    lines.push('END:VCARD');
+    return lines.join('\r\n');
   }
 
   function updateQr() {
-    const vcf = buildMecard();
+    const vcf = buildQrVcard();
     const el = document.getElementById('qrcode');
     try {
       const qr = qrcode(0, 'L'); // type 0 = auto-detect size
