@@ -576,11 +576,14 @@
     const first = get('firstName'), last = get('lastName');
     const phone = get('phone'), email = get('email');
     const website = get('website'), note = get('note'), company = get('company');
-    const esc = s => s.replace(/([\\:;,])/g, '\\$1');
-    let parts = [`N:${esc([last, first].filter(Boolean).join(','))}`];
-    if (phone)   parts.push(`TEL:${esc(phone)}`);
-    if (email)   parts.push(`EMAIL:${esc(email)}`);
-    if (website) parts.push(`URL:${esc(website)}`);
+    // Only escape backslash and semicolon in text fields; never touch URLs
+    const esc = s => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;');
+    // Name: comma separates last,first — do not escape it
+    const namePart = [last, first].filter(Boolean).join(',');
+    let parts = [`N:${esc(namePart)}`];
+    if (phone)   parts.push(`TEL:${phone.replace(/[^\d+]/g, '')}`);
+    if (email)   parts.push(`EMAIL:${email}`);
+    if (website) parts.push(`URL:${website}`);
     if (company) parts.push(`ORG:${esc(company)}`);
     if (note)    parts.push(`NOTE:${esc(note)}`);
     return 'MECARD:' + parts.join(';') + ';;';
