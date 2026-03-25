@@ -201,8 +201,8 @@
       padding: 8px;
       border-radius: 10px;
       flex-shrink: 0;
-      width: 126px;
-      height: 126px;
+      width: 200px;
+      height: 200px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -588,7 +588,7 @@
       qr.addData(vcf, 'Byte');
       qr.make();
       // Draw on canvas
-      const size = 110;
+      const size = 190;
       const moduleCount = qr.getModuleCount();
       const cell = Math.floor(size / moduleCount);
       const offset = Math.floor((size - cell * moduleCount) / 2);
