@@ -708,7 +708,8 @@
         document.getElementById('cardAvatar').innerHTML = `<img src="${photoDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
       }
       // Hide form, show only preview
-      document.querySelector('header p').textContent = 'Scan or download to save this contact';
+      const headerP = document.querySelector('header p');
+      if (headerP) headerP.textContent = 'Scan or download to save this contact';
       document.querySelector('.form-panel').style.display = 'none';
       document.querySelector('.preview-panel').style.gridColumn = '1 / -1';
       document.querySelector('.layout').style.gridTemplateColumns = '1fr';
