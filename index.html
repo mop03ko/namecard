@@ -662,7 +662,7 @@
   });
 
   // ---- Generate Share Link ----
-  document.getElementById('generateLink').addEventListener('click', () => {
+  document.getElementById('generateLink').addEventListener('click', async () => {
     const data = {
       firstName: get('firstName'), lastName: get('lastName'),
       title: get('title'), company: get('company'),
@@ -674,9 +674,26 @@
       photo: photoDataUrl || ''
     };
     const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const url = `${location.origin}${location.pathname}#preview=${hash}`;
-    document.getElementById('shareUrl').value = url;
+    const longUrl = `${location.origin}${location.pathname}#preview=${hash}`;
+
+    const btn = document.getElementById('generateLink');
+    btn.innerHTML = '<span>⏳</span> Shortening…';
+    btn.disabled = true;
+
+    const input = document.getElementById('shareUrl');
     document.getElementById('shareBox').style.display = 'block';
+    input.value = longUrl; // fallback
+
+    try {
+      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+      if (res.ok) {
+        const short = await res.text();
+        if (short.startsWith('http')) input.value = short.trim();
+      }
+    } catch(e) { /* keep long URL as fallback */ }
+
+    btn.innerHTML = '<span>🔗</span> Generate Share Link';
+    btn.disabled = false;
   });
 
   document.getElementById('copyLink').addEventListener('click', async () => {
