@@ -632,8 +632,6 @@
     a.click();
     URL.revokeObjectURL(url);
 
-    // Show tip
-    document.getElementById('shareHint').style.display = 'block';
   });
 
   // ---- Copy vCard ----
@@ -662,7 +660,7 @@
   });
 
   // ---- Generate Share Link ----
-  document.getElementById('generateLink').addEventListener('click', async () => {
+  document.getElementById('generateLink').addEventListener('click', () => {
     const data = {
       firstName: get('firstName'), lastName: get('lastName'),
       title: get('title'), company: get('company'),
@@ -673,27 +671,13 @@
       cardStyle: document.getElementById('cardStyle').value,
       photo: photoDataUrl || ''
     };
-    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const longUrl = `${location.origin}${location.pathname}#preview=${hash}`;
-
-    const btn = document.getElementById('generateLink');
-    btn.innerHTML = '<span>⏳</span> Shortening…';
-    btn.disabled = true;
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const longUrl = `${location.origin}${location.pathname}?preview=${hash}`;
 
     const input = document.getElementById('shareUrl');
     document.getElementById('shareBox').style.display = 'block';
-    input.value = longUrl; // fallback
-
-    try {
-      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-      if (res.ok) {
-        const short = await res.text();
-        if (short.startsWith('http')) input.value = short.trim();
-      }
-    } catch(e) { /* keep long URL as fallback */ }
-
-    btn.innerHTML = '<span>🔗</span> Generate Share Link';
-    btn.disabled = false;
+    input.value = longUrl;
   });
 
   document.getElementById('copyLink').addEventListener('click', async () => {
@@ -706,12 +690,14 @@
     } catch { input.select(); document.execCommand('copy'); }
   });
 
-  // ---- Preview-only mode (load from URL hash) ----
+  // ---- Preview-only mode (load from URL query param) ----
   function loadFromHash() {
-    const hash = location.hash;
-    if (!hash.startsWith('#preview=')) return false;
+    const preview = new URLSearchParams(location.search).get('preview');
+    if (!preview) return false;
     try {
-      const data = JSON.parse(decodeURIComponent(escape(atob(hash.slice(9)))));
+      let b64 = preview.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
       // Populate fields
       ['firstName','lastName','title','company','phone','email','website','address','note'].forEach(k => {
         if (data[k]) document.getElementById(k).value = data[k];
