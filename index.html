@@ -632,8 +632,6 @@
     a.click();
     URL.revokeObjectURL(url);
 
-    // Show tip
-    document.getElementById('shareHint').style.display = 'block';
   });
 
   // ---- Copy vCard ----
@@ -673,7 +671,8 @@
       cardStyle: document.getElementById('cardStyle').value,
       photo: photoDataUrl || ''
     };
-    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(data))))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     const longUrl = `${location.origin}${location.pathname}#preview=${hash}`;
 
     const btn = document.getElementById('generateLink');
@@ -711,7 +710,9 @@
     const hash = location.hash;
     if (!hash.startsWith('#preview=')) return false;
     try {
-      const data = JSON.parse(decodeURIComponent(escape(atob(hash.slice(9)))));
+      let b64 = decodeURIComponent(hash.slice(9)).replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
       // Populate fields
       ['firstName','lastName','title','company','phone','email','website','address','note'].forEach(k => {
         if (data[k]) document.getElementById(k).value = data[k];
