@@ -581,7 +581,7 @@
       'BEGIN:VCARD',
       'VERSION:3.0',
       `N:${last};${first};;;`,
-      `FN:${[first, last].filter(Boolean).join(' ')}`,
+      `FN:${[first, last].filter(Boolean).join(' ') || 'Name'}`,
     ];
     if (company) lines.push(`ORG:${company}`);
     if (title)   lines.push(`TITLE:${title}`);
@@ -685,8 +685,8 @@
     try {
       await navigator.clipboard.writeText(input.value);
       const btn = document.getElementById('copyLink');
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 2000);
+      btn.innerHTML = '✅ Copied!';
+      setTimeout(() => btn.innerHTML = 'Copy', 2000);
     } catch { input.select(); document.execCommand('copy'); }
   });
 
